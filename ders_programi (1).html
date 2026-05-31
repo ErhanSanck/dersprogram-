@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ders Programı</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --surface: #ffffff;
+    --surface2: #efede8;
+    --border: #d8d4cc;
+    --border2: #c5c0b6;
+    --text: #1a1916;
+    --text2: #6b6760;
+    --text3: #a09c96;
+    --accent: #2d5a3d;
+    --accent-light: #e8f0eb;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .logo { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+
+  .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .btn {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 18px;
+    border-radius: var(--radius);
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: none; transition: opacity 0.15s;
+  }
+  .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .btn-green { background: var(--accent); color: #fff; }
+  .btn-green:hover { opacity: 0.86; }
+  .btn-outline {
+    background: var(--surface); color: var(--text2);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover { background: var(--surface2); }
+
+  /* Sınıf chips alanı */
+  .classes-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .panel-label {
+    font-size: 11px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text3); margin-bottom: 10px;
+  }
+  .chips-row {
+    display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px;
+  }
+  .class-chip {
+    padding: 6px 13px;
+    border-radius: 7px;
+    font-size: 12px; font-weight: 600;
+    cursor: grab; user-select: none;
+    transition: transform 0.1s, box-shadow 0.1s;
+    border: 1px solid transparent;
+  }
+  .class-chip:active { cursor: grabbing; }
+  .class-chip.dragging { opacity: 0.3; }
+
+  .empty-hint { font-size: 12px; color: var(--text3); padding: 4px 0; align-self: center; }
+
+  /* Gün sekmeleri */
+  .day-tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .day-tab {
+    padding: 7px 16px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface); color: var(--text2);
+    transition: all 0.15s;
+  }
+  .day-tab:hover { border-color: var(--border2); color: var(--text); }
+  .day-tab.active {
+    background: var(--accent); border-color: var(--accent);
+    color: #fff; box-shadow: 0 2px 8px rgba(45,90,61,0.22);
+  }
+
+  /* Tablo */
+  .table-wrapper {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  table { width: 100%; border-collapse: collapse; }
+
+  /* Başlık satırı — saatler yatay */
+  thead th {
+    padding: 10px 8px;
+    text-align: center;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 500;
+    color: var(--text2); white-space: nowrap;
+  }
+  thead th.corner {
+    width: 110px; min-width: 110px;
+    border-right: 1px solid var(--border);
+    font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text3);
+  }
+  thead th.time-th {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px; line-height: 1.4;
+    min-width: 72px;
+  }
+
+  /* Öğretmen satırları */
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+
+  td.teacher-cell {
+    width: 110px; min-width: 110px;
+    padding: 8px 12px;
+    border-right: 1px solid var(--border);
+    vertical-align: middle;
+    background: var(--surface2);
+  }
+  .teacher-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .teacher-branch { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  td.lesson-cell {
+    padding: 3px;
+    height: 54px; min-width: 72px;
+    vertical-align: middle;
+    transition: background 0.1s;
+  }
+  td.lesson-cell.drag-over { background: #e2f0e6; }
+
+  .cell-inner {
+    width: 100%; height: 100%;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--text3);
+    min-height: 46px; position: relative;
+    transition: background 0.1s;
+  }
+  .cell-inner:not(.filled):hover { background: var(--surface2); }
+  .cell-inner.filled {
+    flex-direction: column; gap: 1px;
+    cursor: grab; border: 1px solid transparent;
+    font-size: 11px; font-weight: 600;
+  }
+  .cell-inner.filled:active { cursor: grabbing; }
+  .filled-sub { font-size: 9px; font-weight: 400; opacity: 0.7; }
+
+  .del-btn {
+    position: absolute; top: 2px; right: 2px;
+    width: 14px; height: 14px; border: none; border-radius: 50%;
+    background: rgba(0,0,0,0.13); color: inherit;
+    font-size: 8px; cursor: pointer; display: none;
+    align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .cell-inner.filled:hover .del-btn { display: flex; }
+  .del-btn:hover { background: rgba(0,0,0,0.28); }
+
+  /* Renk sınıfları */
+  .c-blue   { background:#dbeafe; color:#1e40af; border-color:#bfdbfe!important; }
+  .c-green  { background:#dcfce7; color:#166534; border-color:#bbf7d0!important; }
+  .c-amber  { background:#fef9c3; color:#854d0e; border-color:#fde68a!important; }
+  .c-red    { background:#fee2e2; color:#991b1b; border-color:#fecaca!important; }
+  .c-purple { background:#ede9fe; color:#5b21b6; border-color:#ddd6fe!important; }
+  .c-teal   { background:#ccfbf1; color:#134e4a; border-color:#99f6e4!important; }
+  .c-pink   { background:#fce7f3; color:#9d174d; border-color:#fbcfe8!important; }
+  .c-orange { background:#ffedd5; color:#9a3412; border-color:#fed7aa!important; }
+
+  /* Modal */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(10,10,8,0.42); z-index: 300;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 26px;
+    width: 340px; max-width: 93vw;
+    box-shadow: var(--shadow-md);
+    animation: pop 0.16s ease;
+  }
+  @keyframes pop {
+    from { transform: translateY(10px) scale(0.98); opacity: 0; }
+    to   { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 18px; }
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; padding: 9px 11px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 13px;
+    background: var(--surface); color: var(--text); outline: none;
+    transition: border-color 0.13s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .swatch {
+    width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; transition: transform 0.1s, border-color 0.1s;
+  }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch.sel { border-color: #1a1916; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+  .btn-cancel2 {
+    padding: 8px 15px; border: 1px solid var(--border); border-radius: 8px;
+    background: none; font-family: inherit; font-size: 13px;
+    cursor: pointer; color: var(--text2); transition: background 0.12s;
+  }
+  .btn-cancel2:hover { background: var(--surface2); }
+  .btn-save2 {
+    padding: 8px 20px; border: none; border-radius: 8px;
+    background: var(--accent); color: #fff;
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: opacity 0.13s;
+  }
+  .btn-save2:hover { opacity: 0.86; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Ders <span>Programı</span></div>
+  <div class="top-actions">
+    <button class="btn btn-outline" onclick="openModal('teacher')">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
+      Öğretmen Ekle
+    </button>
+    <button class="btn btn-green" onclick="openModal('class')">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
+      Sınıf Ekle
+    </button>
+  </div>
+</header>
+
+<!-- Sınıflar chips -->
+<div class="classes-panel">
+  <div class="panel-label">Sınıflar — hücreye sürükle &amp; bırak</div>
+  <div class="chips-row" id="classesRow">
+    <span class="empty-hint">Henüz sınıf eklenmedi.</span>
+  </div>
+</div>
+
+<!-- Gün sekmeleri -->
+<div class="day-tabs" id="dayTabs"></div>
+
+<!-- Tablo -->
+<div class="table-wrapper">
+  <table id="scheduleTable"></table>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay" onclick="overlayBg(event)">
+  <div class="modal">
+    <h3 id="modalTitle">Ekle</h3>
+    <div id="modalFields"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel2" onclick="closeModal()">İptal</button>
+      <button class="btn-save2" onclick="saveModal()">Ekle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma'];
+const TIMES = [
+  '13:00\n13:40','13:50\n14:30','14:40\n15:20',
+  '15:30\n16:10','16:20\n17:00','17:10\n17:50',
+  '18:00\n18:40','18:50\n19:30','19:40\n20:00'
+];
+const COLORS = [
+  {key:'blue',   bg:'#dbeafe',color:'#1e40af',border:'#bfdbfe'},
+  {key:'green',  bg:'#dcfce7',color:'#166534',border:'#bbf7d0'},
+  {key:'amber',  bg:'#fef9c3',color:'#854d0e',border:'#fde68a'},
+  {key:'red',    bg:'#fee2e2',color:'#991b1b',border:'#fecaca'},
+  {key:'purple', bg:'#ede9fe',color:'#5b21b6',border:'#ddd6fe'},
+  {key:'teal',   bg:'#ccfbf1',color:'#134e4a',border:'#99f6e4'},
+  {key:'pink',   bg:'#fce7f3',color:'#9d174d',border:'#fbcfe8'},
+  {key:'orange', bg:'#ffedd5',color:'#9a3412',border:'#fed7aa'},
+];
+
+let teachers = [];
+let classes  = [];
+let schedule = {};  // schedule[day][teacherId][timeIdx] = classObj
+let activeDay = 0;
+let modalMode = 'class';
+let selColor = 'blue';
+let draggingClassId = null;
+let draggingFrom = null; // {day, tid, ti}
+
+DAYS.forEach(d => { schedule[d] = {}; });
+
+// ── Renk yardımcıları ──
+function getColor(key){ return COLORS.find(c=>c.key===key)||COLORS[0]; }
+
+// ── Sekme ──
+function buildTabs(){
+  document.getElementById('dayTabs').innerHTML =
+    DAYS.map((d,i)=>`<div class="day-tab${i===activeDay?' active':''}" onclick="switchDay(${i})">${d}</div>`).join('');
+}
+function switchDay(i){ activeDay=i; buildTabs(); buildTable(); }
+
+// ── Sınıf chips ──
+function buildClasses(){
+  const row = document.getElementById('classesRow');
+  if(!classes.length){ row.innerHTML='<span class="empty-hint">Henüz sınıf eklenmedi.</span>'; return; }
+  row.innerHTML = classes.map(cl=>{
+    const c=getColor(cl.color);
+    return `<div class="class-chip c-${cl.color}" id="chip_${cl.id}"
+      draggable="true"
+      ondragstart="dragChipStart(event,'${cl.id}')"
+      ondragend="dragEnd()">${cl.name}</div>`;
+  }).join('');
+}
+
+// ── Tablo ──
+function buildTable(){
+  const day = DAYS[activeDay];
+  // Saat başlıkları yatay
+  let html = `<thead><tr><th class="corner">Öğretmen</th>`;
+  TIMES.forEach(t=>{
+    const lines = t.split('\n');
+    html+=`<th class="time-th">${lines[0]}<br>${lines[1]}</th>`;
+  });
+  html+=`</tr></thead><tbody>`;
+
+  if(!teachers.length){
+    html+=`<tr><td colspan="${TIMES.length+1}" style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Öğretmen eklemek için "Öğretmen Ekle" butonunu kullanın.</td></tr>`;
+  } else {
+    teachers.forEach(t=>{
+      if(!schedule[day][t.id]) schedule[day][t.id]={};
+      html+=`<tr>`;
+      html+=`<td class="teacher-cell">
+        <div class="teacher-name">${t.name}</div>
+        <div class="teacher-branch">${t.branch}</div>
+      </td>`;
+      TIMES.forEach((_,ti)=>{
+        const lesson = schedule[day][t.id][ti];
+        let inner;
+        if(lesson){
+          const c=getColor(lesson.color);
+          inner=`<div class="cell-inner filled c-${lesson.color}"
+            draggable="true"
+            ondragstart="dragCellStart(event,'${day}','${t.id}',${ti})"
+            ondragend="dragEnd()">
+            <button class="del-btn" onclick="delLesson('${day}','${t.id}',${ti})">✕</button>
+            <span>${lesson.name}</span>
+          </div>`;
+        } else {
+          inner=`<div class="cell-inner"><span style="font-size:16px;opacity:0.18">+</span></div>`;
+        }
+        html+=`<td class="lesson-cell"
+          ondragover="event.preventDefault();this.classList.add('drag-over')"
+          ondragleave="this.classList.remove('drag-over')"
+          ondrop="dropCell(event,'${day}','${t.id}',${ti})">${inner}</td>`;
+      });
+      html+=`</tr>`;
+    });
+  }
+  html+=`</tbody>`;
+  document.getElementById('scheduleTable').innerHTML=html;
+}
+
+// ── Sürükle-Bırak ──
+function dragChipStart(e,id){
+  draggingClassId=id; draggingFrom=null;
+  e.dataTransfer.effectAllowed='copy';
+  setTimeout(()=>document.getElementById('chip_'+id)?.classList.add('dragging'),0);
+}
+function dragCellStart(e,day,tid,ti){
+  draggingFrom={day,tid,ti}; draggingClassId=null;
+  e.dataTransfer.effectAllowed='move';
+}
+function dragEnd(){
+  draggingClassId=null;
+  document.querySelectorAll('.class-chip').forEach(c=>c.classList.remove('dragging'));
+}
+function dropCell(e,day,tid,ti){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(draggingClassId){
+    const cl=classes.find(x=>x.id===draggingClassId);
+    if(cl){ if(!schedule[day][tid]) schedule[day][tid]={}; schedule[day][tid][ti]={name:cl.name,color:cl.color,id:cl.id}; }
+  } else if(draggingFrom){
+    const src=draggingFrom;
+    if(src.day===day&&src.tid===tid&&src.ti===ti){draggingFrom=null;return;}
+    const lesson=schedule[src.day]?.[src.tid]?.[src.ti];
+    if(lesson){
+      if(!schedule[day][tid]) schedule[day][tid]={};
+      schedule[day][tid][ti]=lesson;
+      delete schedule[src.day][src.tid][src.ti];
+    }
+    draggingFrom=null;
+  }
+  buildTable();
+}
+function delLesson(day,tid,ti){
+  delete schedule[day][tid][ti];
+  buildTable();
+}
+
+// ── Modal ──
+function openModal(mode){
+  modalMode=mode; selColor='blue';
+  document.getElementById('modalTitle').textContent = mode==='class' ? 'Sınıf Ekle' : 'Öğretmen Ekle';
+  const f=document.getElementById('modalFields');
+  if(mode==='class'){
+    f.innerHTML=`
+      <div class="field"><label>Sınıf Adı</label><input type="text" id="inp1" placeholder="9-A, 10-B, 11-Fen..." /></div>
+      <div class="field"><label>Renk</label><div class="swatches" id="swatches"></div></div>`;
+  } else {
+    f.innerHTML=`
+      <div class="field"><label>Öğretmen Adı</label><input type="text" id="inp1" placeholder="Ad Soyad" /></div>
+      <div class="field"><label>Branş / Ders</label><input type="text" id="inp2" placeholder="Matematik, Fizik..." /></div>`;
+  }
+  document.getElementById('overlay').classList.add('open');
+  if(mode==='class') buildSwatches();
+  setTimeout(()=>document.getElementById('inp1')?.focus(),60);
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+function overlayBg(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
+
+function buildSwatches(){
+  const el=document.getElementById('swatches');
+  if(!el) return;
+  el.innerHTML=COLORS.map(c=>`<div class="swatch${c.key===selColor?' sel':''}"
+    style="background:${c.bg};border-color:${c.key===selColor?c.color:'transparent'}"
+    onclick="pickColor('${c.key}')"></div>`).join('');
+}
+function pickColor(k){ selColor=k; buildSwatches(); }
+
+function saveModal(){
+  const v1=document.getElementById('inp1')?.value.trim();
+  if(!v1){ document.getElementById('inp1')?.focus(); return; }
+  if(modalMode==='class'){
+    classes.push({id:'cl'+Date.now(),name:v1,color:selColor});
+    buildClasses();
+  } else {
+    const v2=document.getElementById('inp2')?.value.trim()||'—';
+    teachers.push({id:'t'+Date.now(),name:v1,branch:v2});
+    DAYS.forEach(d=>{ if(!schedule[d]) schedule[d]={}; });
+  }
+  closeModal();
+  buildTable();
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeModal();
+  if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open')) saveModal();
+});
+
+buildTabs();
+buildTable();
+</script>
+</body>
+</html>
