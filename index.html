@@ -5,6 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ders Programı</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB6ksDENcsW5IezdbTuGdAwG8DoSPglZGc",
+  authDomain: "program-35778.firebaseapp.com",
+  databaseURL: "https://program-35778-default-rtdb.firebaseio.com",
+  projectId: "program-35778",
+  storageBucket: "program-35778.firebasestorage.app",
+  messagingSenderId: "108400749980",
+  appId: "1:108400749980:web:901fd4851626c52988ec59"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// Ana script yüklenince çalış
+window.addEventListener('load', () => {
+
+  // Firebase'e kaydet — ana script'teki global var'lara erişir
+  window.fbSave = function() {
+    set(ref(db, 'data'), {
+      teachers: window.teachers,
+      classes:  window.classes,
+      schedule: window.schedule
+    });
+  };
+
+  // Firebase'den oku — gerçek zamanlı dinle
+  onValue(ref(db, 'data'), (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      window.buildTabs(); window.buildTable(); window.buildClasses();
+      return;
+    }
+    // Hem window hem local var'ları güncelle
+    teachers = window.teachers = data.teachers || [];
+    classes  = window.classes  = data.classes  || [];
+    schedule = window.schedule = {};
+    window.DAYS.forEach(d => { schedule[d] = {}; });
+    if (data.schedule) {
+      window.DAYS.forEach(d => {
+        if (!data.schedule[d]) return;
+        schedule[d] = {};
+        Object.keys(data.schedule[d]).forEach(tid => {
+          schedule[d][tid] = {};
+          Object.keys(data.schedule[d][tid]).forEach(ti => {
+            schedule[d][tid][+ti] = data.schedule[d][tid][ti];
+          });
+        });
+      });
+    }
+    window.buildTabs();
+    window.buildTable();
+    window.buildClasses();
+    window.hideSaveIndicator();
+  });
+
+});
+</script>
 <style>
   :root {
     --bg: #f5f3ee;
@@ -53,7 +114,8 @@
   .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
   .btn-green { background: var(--accent); color: #fff; }
   .btn-green:hover { opacity: 0.86; }
-  .btn-outline {
+  .btn-save-main { background: #1e3a5f; color: #fff; }
+  .btn-save-main:hover { opacity: 0.86; }
     background: var(--surface); color: var(--text2);
     border: 1px solid var(--border);
   }
@@ -262,7 +324,10 @@
 
 <header>
   <div class="logo">Ders <span>Programı</span></div>
-  <div class="top-actions">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="saveIndicator" style="font-size:12px;color:var(--text3);display:none">Kaydediliyor...</span>
+    <span id="savedIndicator" style="font-size:12px;color:#166534;display:none">✓ Kaydedildi</span>
+    <div class="top-actions">
     <button class="btn btn-outline" onclick="openModal('teacher')">
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
       Öğretmen Ekle
@@ -271,6 +336,11 @@
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
       Sınıf Ekle
     </button>
+    <button class="btn btn-save-main" onclick="triggerSave()">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h8l2 2v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2z"/><rect x="4" y="8" width="6" height="4"/><rect x="4" y="2" width="5" height="3"/></svg>
+      Kaydet
+    </button>
+  </div>
   </div>
 </header>
 
@@ -320,15 +390,17 @@ const COLORS = [
   {key:'orange', bg:'#ffedd5',color:'#9a3412',border:'#fed7aa'},
 ];
 
-let teachers = [];
-let classes  = [];
-let schedule = {};  // schedule[day][teacherId][timeIdx] = classObj
-let activeDay = 0;
-let modalMode = 'class';
-let selColor = 'blue';
-let draggingClassId = null;
-let draggingFrom = null;
-let editingClassId = null;
+var teachers = [];
+var classes  = [];
+var schedule = {};
+var activeDay = 0;
+var modalMode = 'class';
+var selColor = 'blue';
+var draggingClassId = null;
+var draggingFrom = null;
+var editingClassId = null;
+
+window._appState = { get teachers(){ return teachers; }, get classes(){ return classes; }, get schedule(){ return schedule; } };
 
 DAYS.forEach(d => { schedule[d] = {}; });
 
@@ -568,6 +640,33 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape') closeModal();
   if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open')) saveModal();
 });
+
+function triggerSave(){
+  showSaveIndicator();
+  if(typeof window.fbSave === 'function'){
+    window.fbSave();
+  }
+}
+
+function showSaveIndicator(){
+  document.getElementById('saveIndicator').style.display='inline';
+  document.getElementById('savedIndicator').style.display='none';
+}
+function hideSaveIndicator(){
+  document.getElementById('saveIndicator').style.display='none';
+  document.getElementById('savedIndicator').style.display='inline';
+  setTimeout(()=>{ document.getElementById('savedIndicator').style.display='none'; }, 2500);
+}
+
+// window'a aç — Firebase module script erişebilsin
+window.teachers = teachers;
+window.classes  = classes;
+window.schedule = schedule;
+window.DAYS     = DAYS;
+window.buildTabs    = buildTabs;
+window.buildTable   = buildTable;
+window.buildClasses = buildClasses;
+window.hideSaveIndicator = hideSaveIndicator;
 
 buildTabs();
 buildTable();
