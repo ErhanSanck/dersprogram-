@@ -207,7 +207,9 @@ window.addEventListener('load', () => {
     border-right: 1px solid var(--border);
     vertical-align: middle;
     background: var(--surface2);
+    transition: background 0.13s;
   }
+  td.teacher-cell:hover { background: var(--border); }
   .teacher-name { font-size: 13px; font-weight: 500; color: var(--text); }
   .teacher-branch { font-size: 11px; color: var(--text3); margin-top: 2px; }
 
@@ -336,10 +338,7 @@ window.addEventListener('load', () => {
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
       Sınıf Ekle
     </button>
-    <button class="btn btn-save-main" onclick="triggerSave()">
-      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2h8l2 2v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2z"/><rect x="4" y="8" width="6" height="4"/><rect x="4" y="2" width="5" height="3"/></svg>
-      Kaydet
-    </button>
+
   </div>
   </div>
 </header>
@@ -445,7 +444,7 @@ function buildTable(){
     teachers.forEach(t=>{
       if(!schedule[day][t.id]) schedule[day][t.id]={};
       html+=`<tr>`;
-      html+=`<td class="teacher-cell">
+      html+=`<td class="teacher-cell" onclick="openEditTeacher('${t.id}')" title="Düzenle / Sil" style="cursor:pointer">
         <div class="teacher-name">${t.name}</div>
         <div class="teacher-branch">${t.branch}</div>
       </td>`;
@@ -576,6 +575,34 @@ function delLesson(day,tid,ti){
   autoSave();
 }
 
+function openEditTeacher(id){
+  const t = teachers.find(x=>x.id===id);
+  if(!t) return;
+  editingClassId = id; // reuse same variable for teacher editing
+  modalMode = 'editTeacher';
+  document.getElementById('modalTitle').textContent = 'Öğretmeni Düzenle';
+  document.getElementById('modalFields').innerHTML = `
+    <div class="field"><label>Öğretmen Adı</label><input type="text" id="inp1" value="${t.name}" placeholder="Ad Soyad" /></div>
+    <div class="field"><label>Branş / Ders</label><input type="text" id="inp2" value="${t.branch==='—'?'':t.branch}" placeholder="Matematik, Fizik..." /></div>
+    <div class="field">
+      <button class="btn-delete" onclick="deleteTeacher('${id}')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="2,4 12,4"/><path d="M5,4V3a1,1,0,0,1,1-1h2a1,1,0,0,1,1,1v1"/><rect x="3" y="4" width="8" height="8" rx="1"/><line x1="5.5" y1="7" x2="5.5" y2="10"/><line x1="8.5" y1="7" x2="8.5" y2="10"/></svg>
+        Bu öğretmeni sil
+      </button>
+    </div>`;
+  document.getElementById('btn-save-label').textContent = 'Kaydet';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('inp1')?.focus(),60);
+}
+function deleteTeacher(id){
+  teachers = teachers.filter(x=>x.id!==id);
+  window.teachers = teachers;
+  DAYS.forEach(d=>{ delete schedule[d][id]; });
+  closeModal();
+  buildTable();
+  autoSave();
+}
+
 // ── Modal ──
 function openModal(mode){
   modalMode=mode; selColor='blue'; editingClassId=null;
@@ -610,7 +637,15 @@ function pickColor(k){ selColor=k; buildSwatches(); }
 function saveModal(){
   const v1=document.getElementById('inp1')?.value.trim();
   if(!v1){ document.getElementById('inp1')?.focus(); return; }
-  if(modalMode==='editClass'){
+  if(modalMode==='editTeacher'){
+    const t=teachers.find(x=>x.id===editingClassId);
+    if(t){
+      t.name=v1;
+      t.branch=document.getElementById('inp2')?.value.trim()||'—';
+      window.teachers=teachers;
+    }
+    closeModal(); buildTable(); autoSave();
+  } else if(modalMode==='editClass'){
     const cl=classes.find(x=>x.id===editingClassId);
     if(cl){
       const oldName=cl.name;
