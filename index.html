@@ -195,7 +195,16 @@
   .c-pink   { background:#fce7f3; color:#9d174d; border-color:#fbcfe8!important; }
   .c-orange { background:#ffedd5; color:#9a3412; border-color:#fed7aa!important; }
 
-  /* Modal */
+  .btn-delete {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 14px; border-radius: 8px;
+    background: #fee2e2; color: #991b1b;
+    border: 1px solid #fecaca;
+    font-family: inherit; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: background 0.13s;
+    margin-top: 4px;
+  }
+  .btn-delete:hover { background: #fecaca; }
   .overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(10,10,8,0.42); z-index: 300;
@@ -288,7 +297,7 @@
     <div id="modalFields"></div>
     <div class="modal-footer">
       <button class="btn-cancel2" onclick="closeModal()">İptal</button>
-      <button class="btn-save2" onclick="saveModal()">Ekle</button>
+      <button class="btn-save2" onclick="saveModal()"><span id="btn-save-label">Ekle</span></button>
     </div>
   </div>
 </div>
@@ -318,7 +327,8 @@ let activeDay = 0;
 let modalMode = 'class';
 let selColor = 'blue';
 let draggingClassId = null;
-let draggingFrom = null; // {day, tid, ti}
+let draggingFrom = null;
+let editingClassId = null;
 
 DAYS.forEach(d => { schedule[d] = {}; });
 
@@ -341,7 +351,8 @@ function buildClasses(){
     return `<div class="class-chip c-${cl.color}" id="chip_${cl.id}"
       draggable="true"
       ondragstart="dragChipStart(event,'${cl.id}')"
-      ondragend="dragEnd()">${cl.name}</div>`;
+      ondragend="dragEnd(event,'${cl.id}')"
+      onclick="chipClick(event,'${cl.id}')">${cl.name}</div>`;
   }).join('');
 }
 
@@ -374,7 +385,7 @@ function buildTable(){
           inner=`<div class="cell-inner filled c-${lesson.color}"
             draggable="true"
             ondragstart="dragCellStart(event,'${day}','${t.id}',${ti})"
-            ondragend="dragEnd()">
+            ondragend="dragEnd(event,null)">
             <button class="del-btn" onclick="delLesson('${day}','${t.id}',${ti})">✕</button>
             <span>${lesson.name}</span>
           </div>`;
@@ -399,15 +410,74 @@ function dragChipStart(e,id){
   e.dataTransfer.effectAllowed='copy';
   setTimeout(()=>document.getElementById('chip_'+id)?.classList.add('dragging'),0);
 }
+function dragEnd(e,id){
+  if(id) document.getElementById('chip_'+id)?.classList.remove('dragging');
+  document.querySelectorAll('.class-chip').forEach(c=>c.classList.remove('dragging'));
+  draggingClassId=null;
+}
+function chipClick(e,id){
+  const chip = document.getElementById('chip_'+id);
+  if(chip && chip._wasDrag){ chip._wasDrag=false; return; }
+  openEditClass(id);
+}
+
+// Chip'lere pointer hareketi izleyici — tıklama mı sürükleme mi ayır
+document.addEventListener('pointerdown', function(e){
+  const chip = e.target.closest('.class-chip');
+  if(!chip) return;
+  const startX=e.clientX, startY=e.clientY;
+  chip._wasDrag=false;
+  function onMove(ev){
+    if(Math.abs(ev.clientX-startX)>5||Math.abs(ev.clientY-startY)>5) chip._wasDrag=true;
+  }
+  function onUp(){
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+  }
+  document.addEventListener('pointermove',onMove);
+  document.addEventListener('pointerup',onUp);
+});
+function openEditClass(id){
+  const cl = classes.find(x=>x.id===id);
+  if(!cl) return;
+  editingClassId = id;
+  selColor = cl.color;
+  modalMode = 'editClass';
+  document.getElementById('modalTitle').textContent = 'Sınıfı Düzenle';
+  document.getElementById('modalFields').innerHTML = `
+    <div class="field"><label>Sınıf Adı</label><input type="text" id="inp1" value="${cl.name}" placeholder="9-A, 10-B..." /></div>
+    <div class="field"><label>Renk</label><div class="swatches" id="swatches"></div></div>
+    <div class="field">
+      <button class="btn-delete" onclick="deleteClass('${id}')">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="2,4 12,4"/><path d="M5,4V3a1,1,0,0,1,1-1h2a1,1,0,0,1,1,1v1"/><rect x="3" y="4" width="8" height="8" rx="1"/><line x1="5.5" y1="7" x2="5.5" y2="10"/><line x1="8.5" y1="7" x2="8.5" y2="10"/></svg>
+        Bu sınıfı sil
+      </button>
+    </div>`;
+  document.getElementById('btn-save-label').textContent = 'Kaydet';
+  document.getElementById('overlay').classList.add('open');
+  buildSwatches();
+  setTimeout(()=>document.getElementById('inp1')?.focus(),60);
+}
+function deleteClass(id){
+  classes = classes.filter(x=>x.id!==id);
+  // schedule'dan bu sınıfın tüm girişlerini sil
+  DAYS.forEach(d=>{
+    Object.keys(schedule[d]).forEach(tid=>{
+      Object.keys(schedule[d][tid]).forEach(ti=>{
+        if(schedule[d][tid][+ti]?.id===id) delete schedule[d][tid][+ti];
+      });
+    });
+  });
+  closeModal();
+  buildClasses();
+  buildTable();
+}
 function dragCellStart(e,day,tid,ti){
-  draggingFrom={day,tid,ti}; draggingClassId=null;
+  draggingFrom={day,tid,ti:+ti}; draggingClassId=null;
   e.dataTransfer.effectAllowed='move';
 }
-function dragEnd(){
-  draggingClassId=null;
-  document.querySelectorAll('.class-chip').forEach(c=>c.classList.remove('dragging'));
-}
 function dropCell(e,day,tid,ti){
+  ti=+ti;
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
   if(draggingClassId){
@@ -433,7 +503,7 @@ function delLesson(day,tid,ti){
 
 // ── Modal ──
 function openModal(mode){
-  modalMode=mode; selColor='blue';
+  modalMode=mode; selColor='blue'; editingClassId=null;
   document.getElementById('modalTitle').textContent = mode==='class' ? 'Sınıf Ekle' : 'Öğretmen Ekle';
   const f=document.getElementById('modalFields');
   if(mode==='class'){
@@ -445,11 +515,12 @@ function openModal(mode){
       <div class="field"><label>Öğretmen Adı</label><input type="text" id="inp1" placeholder="Ad Soyad" /></div>
       <div class="field"><label>Branş / Ders</label><input type="text" id="inp2" placeholder="Matematik, Fizik..." /></div>`;
   }
+  document.getElementById('btn-save-label').textContent = 'Ekle';
   document.getElementById('overlay').classList.add('open');
   if(mode==='class') buildSwatches();
   setTimeout(()=>document.getElementById('inp1')?.focus(),60);
 }
-function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); editingClassId=null; }
 function overlayBg(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
 
 function buildSwatches(){
@@ -464,16 +535,33 @@ function pickColor(k){ selColor=k; buildSwatches(); }
 function saveModal(){
   const v1=document.getElementById('inp1')?.value.trim();
   if(!v1){ document.getElementById('inp1')?.focus(); return; }
-  if(modalMode==='class'){
+  if(modalMode==='editClass'){
+    const cl=classes.find(x=>x.id===editingClassId);
+    if(cl){
+      const oldName=cl.name;
+      cl.name=v1; cl.color=selColor;
+      // schedule'daki adı güncelle
+      DAYS.forEach(d=>{
+        Object.keys(schedule[d]).forEach(tid=>{
+          Object.keys(schedule[d][tid]).forEach(ti=>{
+            if(schedule[d][tid][+ti]?.id===editingClassId){
+              schedule[d][tid][+ti].name=v1;
+              schedule[d][tid][+ti].color=selColor;
+            }
+          });
+        });
+      });
+    }
+    buildClasses(); closeModal(); buildTable();
+  } else if(modalMode==='class'){
     classes.push({id:'cl'+Date.now(),name:v1,color:selColor});
-    buildClasses();
+    buildClasses(); closeModal(); buildTable();
   } else {
     const v2=document.getElementById('inp2')?.value.trim()||'—';
     teachers.push({id:'t'+Date.now(),name:v1,branch:v2});
     DAYS.forEach(d=>{ if(!schedule[d]) schedule[d]={}; });
+    closeModal(); buildTable();
   }
-  closeModal();
-  buildTable();
 }
 
 document.addEventListener('keydown',e=>{
