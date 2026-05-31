@@ -325,8 +325,8 @@ window.addEventListener('load', () => {
 <header>
   <div class="logo">Ders <span>Programı</span></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span id="saveIndicator" style="font-size:12px;color:var(--text3);display:none">Kaydediliyor...</span>
-    <span id="savedIndicator" style="font-size:12px;color:#166534;display:none">✓ Kaydedildi</span>
+    <span id="saveIndicator" style="font-size:12px;color:var(--text3);display:none">⏳ Kaydediliyor...</span>
+    <span id="savedIndicator" style="font-size:12px;color:#166534;display:none">✓ Otomatik kaydedildi</span>
     <div class="top-actions">
     <button class="btn btn-outline" onclick="openModal('teacher')">
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>
@@ -543,6 +543,7 @@ function deleteClass(id){
   closeModal();
   buildClasses();
   buildTable();
+  autoSave();
 }
 function dragCellStart(e,day,tid,ti){
   draggingFrom={day,tid,ti:+ti}; draggingClassId=null;
@@ -567,10 +568,12 @@ function dropCell(e,day,tid,ti){
     draggingFrom=null;
   }
   buildTable();
+  autoSave();
 }
 function delLesson(day,tid,ti){
   delete schedule[day][tid][ti];
   buildTable();
+  autoSave();
 }
 
 // ── Modal ──
@@ -624,15 +627,15 @@ function saveModal(){
         });
       });
     }
-    buildClasses(); closeModal(); buildTable();
+    buildClasses(); closeModal(); buildTable(); autoSave();
   } else if(modalMode==='class'){
     classes.push({id:'cl'+Date.now(),name:v1,color:selColor});
-    buildClasses(); closeModal(); buildTable();
+    buildClasses(); closeModal(); buildTable(); autoSave();
   } else {
     const v2=document.getElementById('inp2')?.value.trim()||'—';
     teachers.push({id:'t'+Date.now(),name:v1,branch:v2});
     DAYS.forEach(d=>{ if(!schedule[d]) schedule[d]={}; });
-    closeModal(); buildTable();
+    closeModal(); buildTable(); autoSave();
   }
 }
 
@@ -646,6 +649,18 @@ function triggerSave(){
   if(typeof window.fbSave === 'function'){
     window.fbSave();
   }
+}
+
+// ── Otomatik Kayıt (debounce: 1.5s) ──
+var _autoSaveTimer = null;
+function autoSave(){
+  if(_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  showSaveIndicator();
+  _autoSaveTimer = setTimeout(function(){
+    if(typeof window.fbSave === 'function'){
+      window.fbSave();
+    }
+  }, 1500);
 }
 
 function showSaveIndicator(){
