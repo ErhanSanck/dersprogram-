@@ -372,7 +372,7 @@ window.addEventListener('load', () => {
 </div>
 
 <script>
-const DAYS = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma'];
+const DAYS = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
 const TIMES = [
   '10:00\n10:40','10:50\n11:30','11:40\n12:20',
   '12:30\n13:10','13:20\n14:00','14:10\n14:50',
@@ -421,6 +421,7 @@ function buildClasses(){
   row.innerHTML = classes.map(cl=>{
     const c=getColor(cl.color);
     return `<div class="class-chip c-${cl.color}" id="chip_${cl.id}"
+      data-chip-id="${cl.id}"
       draggable="true"
       ondragstart="dragChipStart(event,'${cl.id}')"
       ondragend="dragEnd(event,'${cl.id}')"
@@ -464,7 +465,7 @@ function buildTable(){
         } else {
           inner=`<div class="cell-inner"><span style="font-size:16px;opacity:0.18">+</span></div>`;
         }
-        html+=`<td class="lesson-cell"
+        html+=`<td class="lesson-cell" data-day="${day}" data-tid="${t.id}" data-ti="${ti}"
           ondragover="event.preventDefault();this.classList.add('drag-over')"
           ondragleave="this.classList.remove('drag-over')"
           ondrop="dropCell(event,'${day}','${t.id}',${ti})">${inner}</td>`;
@@ -493,7 +494,111 @@ function chipClick(e,id){
   openEditClass(id);
 }
 
-// Chip'lere pointer hareketi izleyici — tıklama mı sürükleme mi ayır
+// ── Touch Sürükle-Bırak (Tablet Desteği) ──
+(function(){
+  var ghost=null, touchSrc=null, lastTarget=null;
+
+  function getElAt(x,y){
+    if(ghost) ghost.style.display='none';
+    var el=document.elementFromPoint(x,y);
+    if(ghost) ghost.style.display='';
+    return el;
+  }
+
+  function makeGhost(el){
+    var r=el.getBoundingClientRect();
+    ghost=el.cloneNode(true);
+    ghost.style.cssText=`
+      position:fixed;left:${r.left}px;top:${r.top}px;
+      width:${r.width}px;height:${r.height}px;
+      opacity:0.75;pointer-events:none;z-index:9999;
+      border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.2);
+      transition:none;`;
+    document.body.appendChild(ghost);
+  }
+
+  function removeGhost(){
+    if(ghost){ ghost.remove(); ghost=null; }
+  }
+
+  function clearOver(){
+    document.querySelectorAll('.drag-over').forEach(function(c){ c.classList.remove('drag-over'); });
+  }
+
+  // ── Sınıf chip'i dokunma ──
+  document.addEventListener('touchstart', function(e){
+    var chip=e.target.closest('.class-chip');
+    if(!chip) return;
+    var id=chip.dataset.chipId;
+    if(!id) return;
+    draggingClassId=id; draggingFrom=null;
+    makeGhost(chip);
+    chip._touchMoved=false;
+  },{passive:true});
+
+  // ── Hücre chip'i (dolu hücre) dokunma ──
+  document.addEventListener('touchstart', function(e){
+    var inner=e.target.closest('.cell-inner.filled');
+    if(!inner) return;
+    var td=inner.closest('td.lesson-cell');
+    if(!td) return;
+    var day=td.dataset.day, tid=td.dataset.tid, ti=+td.dataset.ti;
+    draggingFrom={day:day,tid:tid,ti:ti}; draggingClassId=null;
+    makeGhost(inner);
+    inner._touchMoved=false;
+    e.preventDefault();
+  },{passive:false});
+
+  document.addEventListener('touchmove', function(e){
+    if(!ghost) return;
+    e.preventDefault();
+    var t=e.touches[0];
+    ghost.style.left=(t.clientX-ghost.offsetWidth/2)+'px';
+    ghost.style.top=(t.clientY-ghost.offsetHeight/2)+'px';
+
+    clearOver();
+    var el=getElAt(t.clientX,t.clientY);
+    var td=el&&el.closest('td.lesson-cell');
+    if(td){ td.classList.add('drag-over'); lastTarget=td; }
+    else lastTarget=null;
+  },{passive:false});
+
+  document.addEventListener('touchend', function(e){
+    if(!ghost){ return; }
+    var t=e.changedTouches[0];
+    clearOver();
+    removeGhost();
+
+    var el=getElAt(t.clientX,t.clientY);
+    var td=el&&el.closest('td.lesson-cell');
+    if(!td){ draggingClassId=null; draggingFrom=null; return; }
+
+    var day=td.dataset.day, tid=td.dataset.tid, ti=+td.dataset.ti;
+
+    if(draggingClassId){
+      var cl=classes.find(function(x){return x.id===draggingClassId;});
+      if(cl){
+        if(!schedule[day][tid]) schedule[day][tid]={};
+        schedule[day][tid][ti]={name:cl.name,color:cl.color,id:cl.id};
+      }
+      draggingClassId=null;
+    } else if(draggingFrom){
+      var src=draggingFrom;
+      if(!(src.day===day&&src.tid===tid&&src.ti===ti)){
+        var lesson=schedule[src.day]&&schedule[src.day][src.tid]&&schedule[src.day][src.tid][src.ti];
+        if(lesson){
+          if(!schedule[day][tid]) schedule[day][tid]={};
+          schedule[day][tid][ti]=lesson;
+          delete schedule[src.day][src.tid][src.ti];
+        }
+      }
+      draggingFrom=null;
+    }
+    buildTable();
+    autoSave();
+  },{passive:true});
+})();
+
 document.addEventListener('pointerdown', function(e){
   const chip = e.target.closest('.class-chip');
   if(!chip) return;
